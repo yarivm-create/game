@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tactical Command: Elite Operations</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00e5ff;
+            --secondary: #ff0055;
+            --bg-dark: #05070a;
+            --panel-bg: rgba(15, 20, 30, 0.85);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-dark);
+            color: #e0e0e0;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* מסך פתיחה מקצועי */
+        #overlay {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, #101520, #05070a);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.8s ease;
+        }
+
+        .start-card {
+            text-align: center;
+            padding: 40px;
+            border: 1px solid var(--border);
+            background: var(--panel-bg);
+            border-radius: 4px;
+            backdrop-filter: blur(20px);
+        }
+
+        .btn-main {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 16px 48px;
+            font-size: 18px;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: pointer;
+            letter-spacing: 4px;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+
+        .btn-main:hover {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.4);
+        }
+
+        /* HUD עליון */
+        #hud {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            padding: 20px 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .stat-group { text-align: center; }
+        .label { font-size: 10px; letter-spacing: 2px; color: #888; margin-bottom: 5px; text-transform: uppercase; }
+        .value { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: bold; }
+        
+        .hp-track { width: 240px; height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-top: 8px; }
+        .hp-fill { height: 100%; width: 100%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        /* סרגל פעולות תחתון */
+        #action-bar {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        .unit-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.2s;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .unit-card:hover {
+            border-color: var(--primary);
+            background: rgba(0, 229, 255, 0.05);
+            transform: translateY(-4px);
+        }
+
+        .unit-card.disabled { opacity: 0.4; cursor: not-allowed; }
+        .unit-card .name { display: block; font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+        .unit-card .cost { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #f1c40f; }
+        .key-hint { font-size: 9px; color: #555; margin-top: 5px; }
+
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<div id="overlay">
+    <div class="start-card">
+        <h1 style="font-size: 32px; font-weight: 400; letter-spacing: 12px; color: var(--primary);">SYSTEM READY</h1>
+        <p style="color: #666; font-size: 14px; margin-bottom: 30px;">STRATEGIC DEFENSE PROTOCOL: IL / USA</p>
+        <button class="btn-main" id="startBtn">INITIALIZE</button>
+    </div>
+</div>
+
+<div id="hud">
+    <div class="stat-group">
+        <div class="label">Ally Base Integrity</div>
+        <div class="hp-track"><div id="hp-a" class="hp-fill" style="background: var(--primary);"></div></div>
+    </div>
+    <div class="stat-group">
+        <div class="label">Budget</div>
+        <div id="money" class="value" style="color: #f1c40f;">$150</div>
+    </div>
+    <div class="stat-group">
+        <div class="label">Enemy Progression</div>
+        <div class="hp-track"><div id="hp-e" class="hp-fill" style="background: var(--secondary);"></div></div>
+    </div>
+</div>
+
+<canvas id="game"></canvas>
+
+<div id="action-bar">
+    <div class="unit-card" onclick="game.buy('tank')">
+        <span class="name">MERKAVA</span>
+        <span class="cost">$50</span>
+        <div class="key-hint">[1]</div>
+    </div>
+    <div class="unit-card" onclick="game.buy('jet')">
+        <span class="name">F-35 STEALTH</span>
+        <span class="cost">$150</span>
+        <div class="key-hint">[2]</div>
+    </div>
+    <div class="unit-card" onclick="game.buy('b2')">
+        <span class="name">B-2 BOMBER</span>
+        <span class="cost">$500</span>
+        <div class="key-hint">[3]</div>
+    </div>
+    <div class="unit-card" onclick="game.buy('drone')">
+        <span class="name">DRONE</span>
+        <span class="cost">$30</span>
+        <div class="key-hint">[4]</div>
+    </div>
+</div>
+
+<script>
+class GameEngine {
+    constructor() {
+        this.canvas = document.getElementById('game');
+        this.ctx = this.canvas.getContext('2d');
+        this.units = [];
+        this.particles = [];
+        this.money = 150;
+        this.hpA = 1000;
+        this.hpE = 1000;
+        this.active = false;
+        
+        this.uData = {
+            tank: { cost: 50, hp: 200, speed: 1.1, dmg: 20, size: 28, color: '#00e5ff' },
+            jet: { cost: 150, hp: 100, speed: 4.5, dmg: 40, size: 22, color: '#00e5ff' },
+            b2: { cost: 500, hp: 600, speed: 2.0, dmg: 250, size: 55, color: '#607d8b' },
+            drone: { cost: 30, hp: 40, speed: 6.0, dmg: 15, size: 14, color: '#ffeb3b' }
+        };
+
+        window.addEventListener('resize', () => this.resize());
+        this.resize();
+        this.setupControls();
+    }
+
+    resize() {
+        this.w = this.canvas.width = window.innerWidth;
+        this.h = this.canvas.height = window.innerHeight;
+    }
+
+    setupControls() {
+        document.getElementById('startBtn').addEventListener('click', () => {
+            document.getElementById('overlay').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('overlay').style.display = 'none';
+                this.active = true;
+                this.loop();
+                this.startLogic();
+            }, 800);
+        });
+
+        window.addEventListener('keydown', (e) => {
+            const keys = { '1': 'tank', '2': 'jet', '3': 'b2', '4': 'drone' };
+            if(keys[e.key]) this.buy(keys[e.key]);
+        });
+    }
+
+    startLogic() {
+        setInterval(() => { if(this.active) this.money += 8; }, 1000);
+        setInterval(() => {
+            if(this.active) this.spawn('enemy', ['tank', 'drone', 'jet'][Math.floor(Math.random()*3)]);
+        }, 3200);
+    }
+
+    buy(type) {
+        if(this.money >= this.uData[type].cost) {
+            this.money -= this.uData[type].cost;
+            this.spawn('ally', type);
+        }
+    }
+
+    spawn(side, type) {
+        this.units.push({
+            ...this.uData[type],
+            side, type,
+            x: side === 'ally' ? -50 : this.w + 50,
+            y: Math.random() * (this.h * 0.5) + (this.h * 0.25),
+            curHP: this.uData[type].hp,
+            offset: Math.random() * Math.PI * 2 // לאנימציית ציפה
+        });
+    }
+
+    createExplosion(x, y, color) {
+        for(let i=0; i<20; i++) {
+            this.particles.push({
+                x, y,
+                dx: (Math.random()-0.5)*12,
+                dy: (Math.random()-0.5)*12,
+                life: 1.0,
+                color: color
+            });
+        }
+    }
+
+    drawUnit(u, time) {
+        const ctx = this.ctx;
+        const bounce = Math.sin(time * 0.005 + u.offset) * 3;
+        
+        ctx.save();
+        ctx.translate(u.x, u.y + bounce);
+        if(u.side === 'enemy') ctx.scale(-1, 1);
+
+        // Core Design
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = u.side === 'ally' ? u.color : '#ff0055';
+        ctx.fillStyle = u.side === 'ally' ? u.color : '#ff0055';
+
+        if(u.type === 'tank') {
+            ctx.fillRect(-u.size/2, -u.size/4, u.size, u.size/2);
+            ctx.fillRect(0, -u.size/2, u.size/2, u.size/2);
+            ctx.fillRect(u.size/2, -u.size/4, u.size/3, 4);
+        } else {
+            ctx.beginPath();
+            ctx.moveTo(u.size/2, 0);
+            ctx.lineTo(-u.size/2, -u.size/2);
+            ctx.lineTo(-u.size/3, 0);
+            ctx.lineTo(-u.size/2, u.size/2);
+            ctx.fill();
+        }
+
+        // HP Bar Minimal
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.fillRect(-u.size/2, -u.size - 5, u.size, 2);
+        ctx.fillStyle = u.side === 'ally' ? u.color : '#ff0055';
+        ctx.fillRect(-u.size/2, -u.size - 5, (u.curHP/u.hp)*u.size, 2);
+        
+        ctx.restore();
+    }
+
+    loop(time) {
+        if(!this.active) return;
+        this.ctx.fillStyle = '#05070a';
+        this.ctx.fillRect(0, 0, this.w, this.h);
+
+        // Grid Background
+        this.ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+        this.ctx.lineWidth = 1;
+        for(let i=0; i<this.w; i+=80) { this.ctx.beginPath(); this.ctx.moveTo(i,0); this.ctx.lineTo(i,this.h); this.ctx.stroke(); }
+
+        // Particles
+        for(let i=this.particles.length-1; i>=0; i--) {
+            let p = this.particles[i];
+            p.x += p.dx; p.y += p.dy; p.life -= 0.02;
+            if(p.life <= 0) this.particles.splice(i, 1);
+            else {
+                this.ctx.globalAlpha = p.life;
+                this.ctx.fillStyle = p.color;
+                this.ctx.beginPath(); this.ctx.arc(p.x, p.y, 2, 0, 7); this.ctx.fill();
+            }
+        }
+        this.ctx.globalAlpha = 1;
+
+        // Units Logic
+        for(let i=this.units.length-1; i>=0; i--) {
+            let u = this.units[i];
+            u.x += (u.side === 'ally' ? u.speed : -u.speed);
+
+            this.units.forEach(other => {
+                if(u.side !== other.side && Math.abs(u.x - other.x) < 50 && Math.abs(u.y - other.y) < 50) {
+                    u.curHP -= 1; other.curHP -= 1;
+                }
+            });
+
+            if(u.x > this.w || u.x < 0) {
+                if(u.side === 'ally') this.hpE -= u.dmg; else this.hpA -= u.dmg;
+                this.units.splice(i, 1);
+                this.createExplosion(u.x, u.y, u.color);
+            } else if(u.curHP <= 0) {
+                if(u.side === 'enemy') this.money += 25;
+                this.createExplosion(u.x, u.y, u.side === 'ally' ? u.color : '#ff0055');
+                this.units.splice(i, 1);
+            } else {
+                this.drawUnit(u, time);
+            }
+        }
+
+        document.getElementById('money').innerText = `$${Math.floor(this.money)}`;
+        document.getElementById('hp-a').style.width = (this.hpA/10) + '%';
+        document.getElementById('hp-e').style.width = (this.hpE/10) + '%';
+
+        if(this.hpA <= 0 || this.hpE <= 0) {
+            alert(this.hpA <= 0 ? "PROTOCOL FAILED: TERRITORY LOST" : "CRITICAL VICTORY: AREA SECURED");
+            location.reload();
+            return;
+        }
+
+        requestAnimationFrame((t) => this.loop(t));
+    }
+}
+
+const game = new GameEngine();
+</script>
+</body>
+</html>
