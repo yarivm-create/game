@@ -2,86 +2,141 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>פיקוד טקטי: מבצע הגנה</title>
-    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <title>פיקוד טקטי: Elite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #00e5ff; --enemy: #ff0055; --bg: #05070a; }
         body { margin: 0; background: var(--bg); color: #e0e0e0; font-family: 'Assistant', sans-serif; overflow: hidden; user-select: none; }
-        
-        /* מדדי חיים וכסף */
         #hud { position: absolute; top: 0; width: 100%; padding: 20px 0; display: flex; justify-content: space-around; align-items: center; z-index: 100; }
-        .hp-label { font-size: 14px; margin-bottom: 5px; color: #888; }
-        .hp-bar { width: 220px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
-        .hp-fill { height: 100%; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-        #money { font-family: 'JetBrains Mono'; font-size: 32px; color: #f1c40f; text-shadow: 0 0 10px rgba(241, 196, 15, 0.3); }
-
-        /* חנות יחידות */
+        .hp-bar { width: 200px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; }
+        .hp-fill { height: 100%; transition: width 0.4s; }
+        #money { font-size: 32px; color: #f1c40f; font-weight: bold; }
         #action-bar { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
-        .card { background: rgba(15, 20, 30, 0.9); border: 1px solid rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 8px; cursor: pointer; text-align: center; min-width: 110px; transition: 0.2s; backdrop-filter: blur(10px); }
-        .card:hover { border-color: var(--primary); transform: translateY(-5px); background: rgba(0, 229, 255, 0.05); }
-        .card b { display: block; font-size: 16px; margin-bottom: 4px; color: var(--primary); }
-        .card span { font-size: 14px; color: #f1c40f; font-weight: bold; }
-        .key-hint { font-size: 10px; color: #555; margin-top: 5px; }
-
-        /* מסך פתיחה */
-        #overlay { position: absolute; inset: 0; background: radial-gradient(circle, #101520, #05070a); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .start-btn { background: transparent; border: 2px solid var(--primary); color: var(--primary); padding: 15px 50px; font-size: 24px; font-weight: bold; cursor: pointer; letter-spacing: 2px; transition: 0.3s; }
-        .start-btn:hover { background: var(--primary); color: #000; box-shadow: 0 0 30px var(--primary); }
-        
+        .card { background: rgba(15, 20, 30, 0.9); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; cursor: pointer; text-align: center; min-width: 100px; }
+        .card:hover { border-color: var(--primary); }
+        #overlay { position: absolute; inset: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .start-btn { background: transparent; border: 2px solid var(--primary); color: var(--primary); padding: 15px 50px; font-size: 24px; cursor: pointer; }
         canvas { display: block; }
-        .instructions { position: absolute; bottom: 110px; width: 100%; text-align: center; color: #666; font-size: 13px; }
     </style>
 </head>
 <body>
 
 <div id="overlay">
-    <h1 style="font-size: 48px; margin-bottom: 10px; color: var(--primary); letter-spacing: -1px;">פיקוד טקטי</h1>
-    <p style="color: #888; margin-bottom: 30px; font-size: 18px;">הגנה על מדינת ישראל וארה"ב</p>
-    <button class="start-btn" onclick="startGame()">התחל מבצע</button>
+    <h1 style="color: var(--primary); letter-spacing: 5px;">פיקוד טקטי</h1>
+    <button class="start-btn" id="mainStartButton">התחל מבצע</button>
 </div>
 
 <div id="hud">
-    <div>
-        <div class="hp-label">הגנת הברית (IL/USA)</div>
-        <div class="hp-bar"><div id="hp-a" class="hp-fill" style="background: var(--primary); width: 100%;"></div></div>
-    </div>
+    <div><div class="hp-bar"><div id="hp-a" class="hp-fill" style="background: var(--primary); width: 100%;"></div></div></div>
     <div id="money">$150</div>
-    <div>
-        <div class="hp-label" style="text-align: left;">כוחות האויב</div>
-        <div class="hp-bar"><div id="hp-e" class="hp-fill" style="background: var(--enemy); width: 100%;"></div></div>
-    </div>
+    <div><div class="hp-bar"><div id="hp-e" class="hp-fill" style="background: var(--enemy); width: 100%;"></div></div></div>
 </div>
 
 <canvas id="game"></canvas>
 
-<div class="instructions">מקשים 1-4 לייצור יחידות | מקש רווח (SPACE) למכת מחץ ($200)</div>
-
 <div id="action-bar">
-    <div class="card" onclick="game.buy('tank')"><b>טנק מרכבה</b><span>$50</span><div class="key-hint">[1]</div></div>
-    <div class="card" onclick="game.buy('jet')"><b>F-35 אדיר</b><span>$150</span><div class="key-hint">[2]</div></div>
-    <div class="card" onclick="game.buy('b2')"><b>מפציץ B-2</b><span>$500</span><div class="key-hint">[3]</div></div>
-    <div class="card" onclick="game.buy('drone')"><b>כטב"ם זיק</b><span>$30</span><div class="key-hint">[4]</div></div>
+    <div class="card" id="buy-tank"><b>טנק מרכבה</b><br><span>$50</span></div>
+    <div class="card" id="buy-jet"><b>F-35 אדיר</b><br><span>$150</span></div>
+    <div class="card" id="buy-b2"><b>מפציץ B-2</b><br><span>$500</span></div>
+    <div class="card" id="buy-drone"><b>כטב"ם</b><br><span>$30</span></div>
 </div>
 
 <script>
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-    let gameActive = false;
+// מנגנון הגנה: הגדרת הפונקציות מיד עם טעינת הסקריפט
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let gameActive = false;
 
-    class Game {
-        constructor() {
-            this.units = [];
-            this.money = 150;
-            this.hpA = 1000;
-            this.hpE = 1000;
-            this.uData = {
-                tank: { cost: 50, hp: 200, speed: 1.2, dmg: 25, size: 30, color: '#00e5ff' },
-                jet: { cost: 150, hp: 100, speed: 5, dmg: 50, size: 25, color: '#00e5ff' },
-                b2: { cost: 500, hp: 700, speed: 2.5, dmg: 400, size: 65, color: '#555' },
-                drone: { cost: 30, hp: 45, speed: 6.8, dmg: 20, size: 18, color: '#f1c40f' }
-            };
+const gameState = {
+    units: [],
+    money: 150,
+    hpA: 1000,
+    hpE: 1000,
+    uData: {
+        tank: { cost: 50, hp: 200, speed: 1.2, dmg: 25, size: 30, color: '#00e5ff' },
+        jet: { cost: 150, hp: 100, speed: 5, dmg: 50, size: 25, color: '#00e5ff' },
+        b2: { cost: 500, hp: 700, speed: 2.5, dmg: 400, size: 65, color: '#555' },
+        drone: { cost: 30, hp: 45, speed: 6.8, dmg: 20, size: 18, color: '#f1c40f' }
+    }
+};
+
+function spawn(side, type) {
+    gameState.units.push({ 
+        ...gameState.uData[type], 
+        side, type, 
+        x: side==='ally' ? -50 : canvas.width+50, 
+        y: Math.random()*(canvas.height*0.6) + canvas.height*0.2, 
+        curHP: gameState.uData[type].hp 
+    });
+}
+
+function buyUnit(type) {
+    if(gameState.money >= gameState.uData[type].cost) {
+        gameState.money -= gameState.uData[type].cost;
+        spawn('ally', type);
+    }
+}
+
+// הפעלה בטוחה של הכפתורים
+document.getElementById('mainStartButton').addEventListener('click', function() {
+    document.getElementById('overlay').style.display = 'none';
+    gameActive = true;
+    init();
+});
+
+document.getElementById('buy-tank').onclick = () => buyUnit('tank');
+document.getElementById('buy-jet').onclick = () => buyUnit('jet');
+document.getElementById('buy-b2').onclick = () => buyUnit('b2');
+document.getElementById('buy-drone').onclick = () => buyUnit('drone');
+
+function init() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    setInterval(() => { if(gameActive) gameState.money += 10; }, 1000);
+    setInterval(() => { if(gameActive) spawn('enemy', ['tank','jet','drone'][Math.floor(Math.random()*3)]); }, 3000);
+    
+    render();
+}
+
+function render() {
+    if(!gameActive) return;
+    ctx.fillStyle = '#05070a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    gameState.units.forEach((u, i) => {
+        u.x += (u.side === 'ally' ? u.speed : -u.speed);
+        ctx.fillStyle = u.side === 'ally' ? u.color : '#ff0055';
+        ctx.fillRect(u.x - u.size/2, u.y - u.size/2, u.size, u.size);
+
+        gameState.units.forEach(other => {
+            if(u.side !== other.side && Math.abs(u.x - other.x) < 40) {
+                u.curHP -= 2; other.curHP -= 2;
+            }
+        });
+
+        if(u.x > canvas.width + 50 || u.x < -50) {
+            if(u.side === 'ally') gameState.hpE -= u.dmg; else gameState.hpA -= u.dmg;
+            gameState.units.splice(i, 1);
+        } else if(u.curHP <= 0) {
+            if(u.side === 'enemy') gameState.money += 20;
+            gameState.units.splice(i, 1);
         }
+    });
 
-        buy(t) {
-            if(this.money >= this.uData[t].cost) {
-                this.money -= this.uData[t].
+    document.getElementById('money').innerText = `$${gameState.money}`;
+    document.getElementById('hp-a').style.width = (gameState.hpA/10) + '%';
+    document.getElementById('hp-e').style.width = (gameState.hpE/10) + '%';
+
+    if(gameState.hpA <= 0 || gameState.hpE <= 0) {
+        alert(gameState.hpA <= 0 ? "הפסד" : "ניצחון!");
+        location.reload();
+        return;
+    }
+    requestAnimationFrame(render);
+}
+
+window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+</script>
+</body>
+</html>
