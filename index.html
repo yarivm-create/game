@@ -2,171 +2,118 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>פקודת מבצע: עליונות אסטרטגית</title>
+    <title>פקודת מבצע: עליונות אסטרטגית - גרסה יציבה</title>
     <style>
         :root { --primary: #00e5ff; --enemy: #ff0055; --bg: #030508; --action: #f1c40f; }
         body { margin: 0; background: var(--bg); color: white; font-family: 'Assistant', sans-serif; overflow: hidden; user-select: none; }
         
-        /* HUD - ממשק תצוגה עליון */
         #hud { 
             position: absolute; top: 0; width: 100%; height: 90px; 
             background: linear-gradient(to bottom, rgba(0, 229, 255, 0.15), transparent);
-            display: flex; justify-content: space-around; align-items: center; 
-            border-bottom: 1px solid rgba(0, 229, 255, 0.3); z-index: 100;
+            display: flex; justify-content: space-around; align-items: center; z-index: 100;
         }
 
-        .stat-box { text-align: center; background: rgba(0,0,0,0.7); padding: 10px 25px; border-radius: 6px; border: 1px solid var(--primary); min-width: 150px; }
-        .stat-box.enemy { border-color: var(--enemy); }
-        .label { font-size: 14px; text-transform: uppercase; color: #aaa; display: block; margin-bottom: 5px; }
-        .value { font-size: 28px; font-weight: bold; color: var(--primary); direction: ltr; display: block; }
+        .stat-box { text-align: center; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 6px; border: 1px solid var(--primary); min-width: 140px; }
+        .value { font-size: 24px; font-weight: bold; color: var(--primary); direction: ltr; display: block; }
         .hp-bar { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-top: 5px; overflow: hidden; }
         .hp-fill { height: 100%; background: #2ed573; transition: width 0.3s; }
 
-        /* קנבס המשחק */
-        canvas { display: block; cursor: crosshair; }
+        canvas { display: block; }
 
-        /* לוח בקרה תחתון */
         #control-panel {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 20px; z-index: 100;
+            display: flex; gap: 15px; z-index: 100;
         }
 
         .cmd-btn {
             background: rgba(5, 10, 20, 0.85); border: 2px solid var(--primary);
-            color: var(--primary); padding: 18px 30px; cursor: pointer;
-            font-weight: bold; border-radius: 4px; transition: all 0.2s;
-            text-transform: uppercase; letter-spacing: 1px; font-size: 16px;
+            color: var(--primary); padding: 15px 25px; cursor: pointer;
+            font-weight: bold; border-radius: 4px; transition: 0.2s;
         }
 
-        .cmd-btn:hover { background: var(--primary); color: black; box-shadow: 0 0 25px var(--primary); }
-        .cmd-btn:active { transform: scale(0.95); }
-        .cmd-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .cmd-btn:hover:not(:disabled) { background: var(--primary); color: black; box-shadow: 0 0 20px var(--primary); }
+        .cmd-btn:disabled { opacity: 0.3; }
 
-        /* מסך פתיחה לאישור סאונד */
         #start-overlay {
             position: absolute; inset: 0; background: rgba(0,0,0,0.95);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
-        }
-        .start-btn { 
-            padding: 25px 60px; font-size: 36px; background: none; 
-            border: 4px solid var(--primary); color: var(--primary); 
-            cursor: pointer; transition: 0.3s; text-transform: uppercase; font-weight: bold;
-        }
-        .start-btn:hover { background: var(--primary); color: black; box-shadow: 0 0 40px var(--primary); }
-        
-        #game-log {
-            position: absolute; top: 110px; width: 100%; text-align: center;
-            color: var(--action); font-weight: bold; font-size: 18px; text-shadow: 0 0 10px black; pointer-events: none;
         }
     </style>
 </head>
 <body>
 
 <div id="start-overlay">
-    <h1 style="color: var(--primary); font-size: 60px; margin-bottom: 10px;">פְקֻדַּת מִבְצָע: עֶלְיוֹנוּת אֲוִירִית</h1>
-    <h3 style="color: #aaa; margin-bottom: 40px;">המפקד איתי, המערכת מוכנה. אֲשֵׁר כְּנִיסָה.</h3>
-    <button class="start-btn" onclick="startGame()">כְּנִיסָה לַמַּעֲרֶכֶת</button>
+    <h1 style="color: var(--primary); font-size: 40px;">המפקד איתי: כניסה למערכת</h1>
+    <button style="padding: 20px 50px; font-size: 24px; cursor:pointer;" onclick="startGame()">התחל מבצע</button>
 </div>
 
 <div id="hud">
     <div class="stat-box">
-        <span class="label">תַּקְצִיב קוֹאָלִיצְיָה</span>
+        <span style="font-size:12px">תקציב</span>
         <span id="budget" class="value">$5000</span>
     </div>
     <div class="stat-box">
-        <span class="label">חָסִין קוֹאָלִיצְיָה</span>
+        <span style="font-size:12px">קואליציה</span>
         <span id="player-hp-val" class="value">100%</span>
         <div class="hp-bar"><div id="player-hp-bar" class="hp-fill" style="width: 100%;"></div></div>
     </div>
-    <div class="stat-box enemy">
-        <span class="label">חָסִין אִירָאן</span>
+    <div class="stat-box" style="border-color: var(--enemy);">
+        <span style="font-size:12px">איראן</span>
         <span id="iran-hp-val" class="value">100%</span>
         <div class="hp-bar"><div id="iran-hp-bar" class="hp-fill" style="width: 100%; background: var(--enemy);"></div></div>
     </div>
-    <div class="stat-box enemy">
-        <span class="label">אַיּוּם גַּרְעִינִי</span>
-        <span id="nuke-prog" class="value">10%</span>
-    </div>
 </div>
-
-<div id="game-log">המערכת במצב המתנה. ממתין לפקודה.</div>
 
 <canvas id="gameCanvas"></canvas>
 
 <div id="control-panel">
-    <button class="cmd-btn" id="btn-f35" onclick="spawnUnit('f35')">הַזְנָקַת F-35 אֲדִיר</button>
-    <button class="cmd-btn" id="btn-b2" onclick="spawnUnit('b2')">מַפְצִיץ B-2</button>
-    <button class="cmd-btn" id="btn-jericho" onclick="spawnUnit('jericho')">טִיל יְרִיחוֹ</button>
+    <button class="cmd-btn" onclick="spawnUnit('f35')">F-35 ($500)</button>
+    <button class="cmd-btn" onclick="spawnUnit('b2')">B-2 ($1500)</button>
+    <button class="cmd-btn" onclick="spawnUnit('jericho')">יריחו ($3000)</button>
 </div>
 
 <script>
-    // הגדרות בסיסיות
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // הגדרת סאונדים מובנית
     const sounds = {
         swoosh: new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'),
-        boom: new Audio('https://assets.mixkit.co/active_storage/sfx/1614/1614-preview.mp3'),
-        alert: new Audio('https://assets.mixkit.co/active_storage/sfx/1001/1001-preview.mp3')
+        boom: new Audio('https://assets.mixkit.co/active_storage/sfx/1614/1614-preview.mp3')
     };
 
-    function playSound(name) {
-        sounds[name].currentTime = 0;
-        sounds[name].play();
-    }
+    let game = {
+        budget: 5000,
+        playerHP: 1000, playerMaxHP: 1000,
+        iranHP: 2500, iranMaxHP: 2500, // הגדלתי משמעותית את החיים של איראן
+        units: [], particles: [], 
+        gameActive: false,
+        lastEnemySpawn: 0
+    };
 
-    // פונקציית התחלה
+    const types = {
+        f35: { emoji: '✈️', speed: 7, dmg: 15, cost: 500, size: 30, trail: '#00e5ff', reward: 100 },
+        b2: { emoji: '🛸', speed: 3, dmg: 50, cost: 1500, size: 45, trail: '#555', reward: 250 },
+        jericho: { emoji: '🚀', speed: 12, dmg: 150, cost: 3000, size: 25, trail: '#ffaa00', reward: 500 },
+        iran: { emoji: '☄️', speed: -5, dmg: 20, size: 25, trail: '#ff0055' }
+    };
+
     function startGame() {
         document.getElementById('start-overlay').style.display = 'none';
-        playSound('alert');
-        initGame();
-    }
-
-    // מצב המשחק
-    let game = {
-        budget: 5000, playerHP: 100, iranHP: 100, nuke: 10,
-        units: [], particles: [], shake: 0,
-        lastEnemyAction: 0, enemyActionDelay: 3500 // איראן תוקפת כל 3.5 שניות
-    };
-
-    // סוגי יחידות
-    const types = {
-        f35: { emoji: '✈️', speed: 8, dmg: 10, cost: 500, size: 30, trail: '#00e5ff', income: 50 },
-        b2: { emoji: '🛸', speed: 4, dmg: 35, cost: 1500, size: 50, trail: '#555', income: 150 },
-        jericho: { emoji: '🚀', speed: 13, dmg: 60, cost: 3000, size: 25, trail: '#ffaa00', income: 300 },
-        iran: { emoji: '☄️', speed: -6, dmg: 15, cost: 0, size: 30, trail: '#ff0055', income: 0 }
-    };
-
-    // אתחול המשחק
-    function initGame() {
-        setInterval(updateBudget, 1000); // תקציב בסיסי עולה כל שנייה
+        game.gameActive = true;
         loop();
     }
 
-    // עדכון תקציב בסיסי
-    function updateBudget() {
-        game.budget += 10;
-        game.nuke += 0.1; // איום גרעיני עולה לאט
-        updateUI();
-    }
-
-    // יצירת יחידה
     function spawnUnit(id) {
-        if(game.budget < types[id].cost) {
-            playSound('alert');
-            logMessage("תַּקְצִיב חָסֵר!");
-            return;
-        }
+        if (!game.gameActive || game.budget < types[id].cost) return;
         game.budget -= types[id].cost;
         createUnit(id, 50, true);
-        playSound('swoosh');
+        sounds.swoosh.currentTime = 0;
+        sounds.swoosh.play();
         updateUI();
     }
 
-    // פונקציה פנימית ליצירת יחידה
     function createUnit(id, x, isAlly) {
         game.units.push({
             ...types[id], x, isAlly,
@@ -174,125 +121,47 @@
         });
     }
 
-    // תגובה איראנית (בזמן אמת)
-    function enemyAILogic(now) {
-        if(now - game.lastEnemyAction > game.enemyActionDelay) {
-            createUnit('iran', canvas.width - 50, false);
-            playSound('swoosh');
-            game.lastEnemyAction = now;
-            // אקראיות קטנה בזמן התגובה הבא
-            game.enemyActionDelay = 2500 + Math.random() * 2000;
-        }
-    }
-
-    // יצירת חלקיקים (עשן/אש)
-    function createParticle(x, y, color) {
-        for(let i=0; i<3; i++) {
-            game.particles.push({
-                x, y, color,
-                vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4,
-                life: 1.0, size: 2 + Math.random() * 2
-            });
-        }
-    }
-
-    // עדכון ממשק המשתמש (HUD)
     function updateUI() {
         document.getElementById('budget').innerText = `$${Math.floor(game.budget)}`;
         
-        document.getElementById('player-hp-val').innerText = `${Math.floor(game.playerHP)}%`;
-        document.getElementById('player-hp-bar').style.width = `${game.playerHP}%`;
+        let pPercent = (game.playerHP / game.playerMaxHP) * 100;
+        document.getElementById('player-hp-val').innerText = `${Math.max(0, Math.floor(pPercent))}%`;
+        document.getElementById('player-hp-bar').style.width = `${pPercent}%`;
         
-        document.getElementById('iran-hp-val').innerText = `${Math.floor(game.iranHP)}%`;
-        document.getElementById('iran-hp-bar').style.width = `${game.iranHP}%`;
-        
-        document.getElementById('nuke-prog').innerText = `${game.nuke.toFixed(1)}%`;
-        
-        // בדיקת תנאי סיום
-        if(game.iranHP <= 0) { endGame(true); }
-        if(game.playerHP <= 0 || game.nuke >= 100) { endGame(false); }
-    }
+        let iPercent = (game.iranHP / game.iranMaxHP) * 100;
+        document.getElementById('iran-hp-val').innerText = `${Math.max(0, Math.floor(iPercent))}%`;
+        document.getElementById('iran-hp-bar').style.width = `${iPercent}%`;
 
-    // הצגת הודעה בלוג
-    function logMessage(text) {
-        document.getElementById('game-log').innerText = text;
-        setTimeout(() => {
-            if(document.getElementById('game-log').innerText === text) {
-                document.getElementById('game-log').innerText = "ממתין לפקודה...";
-            }
-        }, 3000);
-    }
-
-    // סיום המשחק
-    function endGame(isWin) {
-        if(isWin) {
-            alert("הַנִּצָּחוֹן שֶׁלְּךָ, הַמְּפַקֵּד אִיתַי! אִירָאן הוּבְסָה.");
-        } else {
-            alert("הַמְּשִׁימָה נִכְשְׁלָה... אִירָאן הִשִּׂיגָה יִתְרוֹן.");
+        // בדיקה אם מישהו הפסיד
+        if (game.gameActive) {
+            if (game.iranHP <= 0) endGame("ניצחון מוחלט לאיתי!");
+            if (game.playerHP <= 0) endGame("הפסד... המערכות קרסו.");
         }
-        location.reload();
     }
 
-    // לולאת המשחק הראשית (בזמן אמת)
+    function endGame(msg) {
+        game.gameActive = false; // עוצר את הלולאה ואת הבדיקות
+        setTimeout(() => {
+            alert(msg);
+            location.reload();
+        }, 100);
+    }
+
     function loop(now) {
-        // בינה מלאכותית של איראן
-        enemyAILogic(now);
+        if (!game.gameActive) return;
 
-        // אפקט רעידת מסך
-        let dx = (Math.random() - 0.5) * game.shake;
-        let dy = (Math.random() - 0.5) * game.shake;
-        ctx.setTransform(1,0,0,1, dx, dy);
-        if(game.shake > 0) game.shake *= 0.9;
+        // תקציב עולה לאט
+        game.budget += 0.2;
 
-        // ניקוי המסך
-        ctx.fillStyle = game.nuke > 80 ? '#100505' : game.nuke > 50 ? '#080505' : '#020406'; // צבע הרקע משתנה לפי האיום
-        ctx.fillRect(-50,-50, canvas.width+100, canvas.height+100);
+        // בינה מלאכותית של איראן - תוקפת כל 2-4 שניות
+        if (now - game.lastEnemySpawn > 2500) {
+            createUnit('iran', canvas.width - 50, false);
+            game.lastEnemySpawn = now;
+        }
 
-        // עדכון וציור חלקיקים
-        game.particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.life -= 0.03;
-            ctx.fillStyle = p.color;
-            ctx.globalAlpha = p.life;
-            ctx.fillRect(p.x, p.y, p.size, p.size);
-            if(p.life <= 0) game.particles.splice(i, 1);
-        });
-        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = '#020406';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // עדכון וציור יחידות
+        // עדכון יחידות
         game.units.forEach((u, i) => {
             u.x += u.isAlly ? u.speed : u.speed;
-            createParticle(u.x, u.y, u.trail);
-            
-            ctx.font = `${u.size}px Arial`;
-            ctx.fillText(u.emoji, u.x, u.y);
-
-            // בדיקת פגיעה ביעד
-            if((u.isAlly && u.x > canvas.width - 50) || (!u.isAlly && u.x < 50)) {
-                if(u.isAlly) {
-                    game.iranHP -= u.dmg;
-                    game.budget += u.income; // פגיעה מוצלחת מעלה תקציב
-                    logMessage(`פְּגִיעָה מוּצְלַחַת! בּוֹנוּס תַּקְצִיב: $${u.income}`);
-                } else {
-                    game.playerHP -= u.dmg;
-                    logMessage(`אַזְהָרָה: פְּגִיעָה בְּכֹחוֹתֵנוּ!`);
-                }
-                
-                game.shake = u.isAlly ? u.dmg * 0.5 : 20; // עוצמת הרעידה לפי הנזק
-                playSound('boom');
-                
-                // אפקט פיצוץ גדול
-                for(let j=0; j<20; j++) createParticle(u.x, u.y, u.trail);
-                
-                game.units.splice(i, 1);
-                updateUI();
-            }
-        });
-
-        requestAnimationFrame(loop);
-    }
-
-    // התאמה לשינוי גודל חלון
-    window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
-</script>
-</body>
-</html>
