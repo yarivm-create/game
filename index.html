@@ -4,167 +4,189 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:,"> 
-    <title>מבצע איתי: פיקוד עליון</title>
+    <title>מבצע איתי: חומת מגן קריטית</title>
     <style>
-        :root { --primary: #00e5ff; --enemy: #ff0055; --bg: #020406; --gold: #f1c40f; }
+        :root { --primary: #00e5ff; --enemy: #ff0055; --bg: #010204; --gold: #f1c40f; --iron: #2ed573; }
         body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; user-select: none; }
         
-        /* ממשק עליון */
+        /* ממשק עליון (HUD) */
         #hud { 
-            position: absolute; top: 0; width: 100%; height: 100px; 
+            position: absolute; top: 0; width: 100%; height: 110px; 
             display: flex; justify-content: space-around; align-items: center; z-index: 100;
-            background: rgba(0,0,0,0.8); border-bottom: 2px solid var(--primary);
+            background: rgba(0,0,0,0.85); border-bottom: 3px solid var(--primary);
         }
-        .stat-box { text-align: center; }
-        .label { font-size: 12px; color: #aaa; display: block; }
-        .value { font-size: 26px; font-weight: bold; color: var(--primary); direction: ltr; display: block; }
-        
-        /* חנות נשקים */
+        .stat-box { text-align: center; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); min-width: 140px; }
+        .label { font-size: 11px; color: #888; display: block; margin-bottom: 4px; }
+        .value { font-size: 24px; font-weight: bold; color: var(--primary); direction: ltr; display: block; }
+
+        #gameCanvas { display: block; }
+
+        /* אנימציית המגן - לייזר ירוק בוהק */
+        @keyframes shieldPulse {
+            0% { box-shadow: 0 0 10px var(--iron); opacity: 0.6; }
+            50% { box-shadow: 0 0 40px var(--iron); opacity: 0.9; }
+            100% { box-shadow: 0 0 10px var(--iron); opacity: 0.6; }
+        }
+        .shield-effect {
+            position: absolute; left: 130px; top: 110px; width: 15px; height: calc(100vh - 200px);
+            background: var(--iron); border-radius: 20px; z-index: 50;
+            animation: shieldPulse 0.8s infinite; display: none; /* מוסתר בהתחלה */
+        }
+
+        /* חנות נשקים תחתונה */
         #shop {
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 15px; z-index: 100; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 15px; border: 1px solid #333;
+            display: flex; gap: 12px; z-index: 100; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 20px; border: 1px solid #444;
         }
         .weapon-card {
-            background: #1a2634; border: 2px solid var(--primary); padding: 10px;
-            border-radius: 10px; text-align: center; cursor: pointer; transition: 0.2s; min-width: 100px;
+            background: #121a24; border: 2px solid var(--primary); padding: 12px;
+            border-radius: 12px; text-align: center; cursor: pointer; transition: 0.2s; min-width: 90px;
         }
-        .weapon-card:hover:not(.disabled) { background: var(--primary); color: black; transform: translateY(-5px); }
-        .weapon-card.disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(1); }
-        .price { display: block; font-size: 14px; font-weight: bold; margin-top: 5px; color: var(--gold); }
+        .weapon-card:hover:not(.disabled) { background: var(--primary); color: #000; transform: translateY(-5px); }
+        .weapon-card.disabled { opacity: 0.3; filter: grayscale(1); cursor: not-allowed; }
+        .price { display: block; font-size: 13px; color: var(--gold); margin-top: 4px; }
+        
+        /* כפתור כיפת ברזל מיוחד */
+        #iron-dome-btn { border-color: var(--iron); color: var(--iron); }
+        #iron-dome-btn:hover:not(.disabled) { background: var(--iron); color: white; }
 
-        #iron-dome-btn { border-color: #2ed573; color: #2ed573; }
-        #iron-dome-btn.active { background: #2ed573; color: white; box-shadow: 0 0 20px #2ed573; }
-
-        #rank-display { position: absolute; top: 110px; right: 20px; color: var(--gold); font-weight: bold; font-size: 18px; }
-        #start-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        /* מסך פתיחה */
+        #start-overlay { position: absolute; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .start-btn { 
+            padding: 20px 60px; font-size: 25px; background: none; 
+            border: 4px solid var(--primary); color: var(--primary); 
+            cursor: pointer; font-weight: bold;
+        }
+        .start-btn:hover { background: var(--primary); color: #000; }
     </style>
 
     <script>
+        // מצב המשחק
         let game = {
-            budget: 5000, playerHP: 1000, iranHP: 5000,
-            units: [], gameActive: false, lastEnemySpawn: 0,
-            score: 0, rank: "טוראי", ironDomeActive: false
+            budget: 5000, iranBudget: 3000, // תקציב אויב התחלתי
+            playerHP: 1000, iranHP: 5000,
+            units: [], particles: [], gameActive: false,
+            ironDomeActive: false, lastTick: 0
         };
 
+        // הגדרות יחידות
         const types = {
-            f35: { name: 'F-35', emoji: '✈️', speed: 8, dmg: 40, cost: 500, reward: 100 },
-            b2: { name: 'מפציץ B-2', emoji: '🛸', speed: 4, dmg: 200, cost: 2000, reward: 400 },
-            jericho: { name: 'יריחו 3', emoji: '🚀', speed: 14, dmg: 500, cost: 4500, reward: 1000 },
-            iran: { emoji: '☄️', speed: -6, dmg: 60 }
+            f35: { name: 'F-35', emoji: '✈️', speed: 8, dmg: 50, cost: 500, reward: 150 },
+            b2: { name: 'B-2', emoji: '🛸', speed: 4, dmg: 250, cost: 2000, reward: 500 },
+            jericho: { name: 'יריחו', emoji: '🚀', speed: 15, dmg: 600, cost: 4500, reward: 1200 },
+            iran_missile: { cost: 400, speed: -6, dmg: 70, emoji: '☄️' }
         };
 
+        // הגדרת סאונדים
         const sounds = {
             swoosh: new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'),
             boom: new Audio('https://assets.mixkit.co/active_storage/sfx/1614/1614-preview.mp3'),
-            shield: new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3')
+            laser: new Audio('https://assets.mixkit.co/active_storage/sfx/612/612-preview.mp3')
         };
 
+        // פונקציית התחלה
         window.startGame = function() {
             document.getElementById('start-overlay').style.display = 'none';
             game.gameActive = true;
             requestAnimationFrame(loop);
         };
 
+        // פונקציית קנייה
         function buyWeapon(id) {
             if (!game.gameActive || game.budget < types[id].cost) return;
             game.budget -= types[id].cost;
-            game.units.push({
-                ...types[id], x: 50, isAlly: true,
-                y: 200 + Math.random() * (window.innerHeight - 400)
-            });
+            spawnUnit(id, 60, true);
             sounds.swoosh.currentTime = 0;
             sounds.swoosh.play().catch(()=>{});
-            updateUI();
         }
 
+        // פונקציית יצירת יחידה
+        function spawnUnit(id, x, isAlly) {
+            const config = isAlly ? types[id] : types.iran_missile;
+            game.units.push({
+                ...config, x, isAlly,
+                y: 200 + Math.random() * (window.innerHeight - 400)
+            });
+        }
+
+        // הפעלת כיפת ברזל
         function activateIronDome() {
-            if (!game.gameActive || game.budget < 1000 || game.ironDomeActive) return;
-            game.budget -= 1000;
+            if (!game.gameActive || game.budget < 1200 || game.ironDomeActive) return;
+            game.budget -= 1200;
             game.ironDomeActive = true;
-            sounds.shield.play().catch(()=>{});
-            document.getElementById('iron-dome-btn').classList.add('active');
+            document.getElementById('shield-anim').style.display = 'block'; // הצגת אנימציה
+            sounds.laser.play().catch(()=>{});
             
             setTimeout(() => {
                 game.ironDomeActive = false;
-                document.getElementById('iron-dome-btn').classList.remove('active');
-            }, 8000); // 8 שניות של הגנה
-            updateUI();
+                document.getElementById('shield-anim').style.display = 'none'; // הסתרת אנימציה
+            }, 7000); // 7 שניות של הגנה
         }
 
-        function updateUI() {
-            document.getElementById('budget').innerText = `$${Math.floor(game.budget)}`;
-            document.getElementById('p-hp').innerText = `${Math.max(0, Math.floor((game.playerHP/1000)*100))}%`;
-            document.getElementById('i-hp').innerText = `${Math.max(0, Math.floor((game.iranHP/5000)*100))}%`;
-            
-            // עדכון דרגות
-            if (game.score > 10000) game.rank = "רב-אלוף";
-            else if (game.score > 5000) game.rank = "אלוף";
-            else if (game.score > 2000) game.rank = "סגן-אלוף";
-            document.getElementById('rank-display').innerText = `דרגה: ${game.rank}`;
-
-            // עדכון זמינות כפתורים
-            document.querySelectorAll('.weapon-card').forEach(card => {
-                const cost = parseInt(card.dataset.cost);
-                if (game.budget < cost) card.classList.add('disabled');
-                else card.classList.remove('disabled');
-            });
-
-            if (game.gameActive) {
-                if (game.iranHP <= 0) { game.gameActive = false; alert("ניצחון היסטורי למפקד איתי!"); location.reload(); }
-                if (game.playerHP <= 0) { game.gameActive = false; alert("הפסד... נסה שוב."); location.reload(); }
+        // יצירת חלקיקים לפיצוץ
+        function createExplosion(x, y, color) {
+            for(let i=0; i<15; i++) {
+                game.particles.push({
+                    x, y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
+                    life: 1.0, color: color || '#ffaa00'
+                });
             }
         }
 
+        // לולאת המשחק הראשית (בזמן אמת)
         function loop(now) {
             if (!game.gameActive) return;
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
             
-            game.budget += 0.8; // הכנסה פסיבית
-
-            // איראן יורה בקצב קבוע
-            if (now - game.lastEnemySpawn > 2000) {
-                game.units.push({ ...types.iran, x: canvas.width - 50, y: 150 + Math.random() * (canvas.height - 300), isAlly: false });
-                game.lastEnemySpawn = now;
+            // עדכון תקציב (כל חצי שנייה)
+            if (now - game.lastTick > 500) {
+                game.budget += 60;
+                game.iranBudget += 50; // איראן מקבלת פחות
+                game.lastTick = now;
+                updateUI();
             }
 
-            ctx.fillStyle = game.ironDomeActive ? '#05101a' : '#020406';
+            // בינה מלאכותית של איראן - יורים רק אם יש תקציב
+            if (game.iranBudget >= types.iran_missile.cost && Math.random() < 0.02) {
+                game.iranBudget -= types.iran_missile.cost;
+                spawnUnit(null, canvas.width - 60, false);
+            }
+
+            // ניקוי המסך
+            ctx.fillStyle = '#010204';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // הגנה אווירית ויזואלית
-            if (game.ironDomeActive) {
-                ctx.strokeStyle = '#2ed573';
-                ctx.lineWidth = 5;
-                ctx.beginPath();
-                ctx.moveTo(100, 0); ctx.lineTo(100, canvas.height);
-                ctx.stroke();
-                ctx.fillStyle = 'rgba(46, 213, 115, 0.1)';
-                ctx.fillRect(0, 0, 100, canvas.height);
-            }
+            // עדכון חלקיקים
+            game.particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+                ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
+                ctx.fillRect(p.x, p.y, 3, 3);
+                if (p.life <= 0) game.particles.splice(i, 1);
+            });
+            ctx.globalAlpha = 1;
 
+            // עדכון וציור יחידות
             game.units.forEach((u, i) => {
                 u.x += u.isAlly ? u.speed : u.speed;
                 
-                // כיפת ברזל עוצרת טילים
-                if (!u.isAlly && game.ironDomeActive && u.x < 110) {
+                // בדיקת כיפת ברזל (חסימה)
+                if (!u.isAlly && game.ironDomeActive && u.x < 150 && u.x > 120) {
+                    createExplosion(u.x, u.y, '#2ed573'); // אנימציית חסימה ירוקה
+                    sounds.boom.currentTime = 0; sounds.boom.play().catch(()=>{});
                     game.units.splice(i, 1);
-                    game.score += 50;
                     return;
                 }
 
                 ctx.font = `${u.isAlly ? 40 : 30}px Arial`;
                 ctx.fillText(u.emoji, u.x, u.y);
 
+                // בדיקת פגיעה ביעד
                 if ((u.isAlly && u.x > canvas.width - 50) || (!u.isAlly && u.x < 50)) {
-                    if (u.isAlly) { 
-                        game.iranHP -= u.dmg; 
-                        game.budget += u.reward; 
-                        game.score += u.reward;
-                    } else { 
-                        game.playerHP -= u.dmg; 
-                    }
-                    sounds.boom.currentTime = 0;
-                    sounds.boom.play().catch(()=>{});
+                    if (u.isAlly) { game.iranHP -= u.dmg; game.budget += u.reward; }
+                    else { game.playerHP -= u.dmg; }
+                    createExplosion(u.x, u.y, u.isAlly ? '#00e5ff' : '#ff0055'); // אנימציית פיצוץ בצבע הצד
+                    sounds.boom.currentTime = 0; sounds.boom.play().catch(()=>{});
                     game.units.splice(i, 1);
                     updateUI();
                 }
@@ -172,6 +194,27 @@
             requestAnimationFrame(loop);
         }
 
+        // עדכון ממשק המשתמש (HUD)
+        function updateUI() {
+            document.getElementById('budget').innerText = `$${Math.floor(game.budget)}`;
+            document.getElementById('iran-budget').innerText = `$${Math.floor(game.iranBudget)}`;
+            document.getElementById('p-hp').innerText = `${Math.max(0, Math.floor((game.playerHP/1000)*100))}%`;
+            document.getElementById('i-hp').innerText = `${Math.max(0, Math.floor((game.iranHP/5000)*100))}%`;
+            
+            // עדכון זמינות כפתורים בחנות
+            document.querySelectorAll('.weapon-card').forEach(btn => {
+                const cost = btn.dataset.cost;
+                btn.classList.toggle('disabled', game.budget < cost);
+            });
+
+            // בדיקת תנאי סיום
+            if (game.gameActive) {
+                if (game.iranHP <= 0) { game.gameActive = false; alert("ניצחון מוחלט! איראן הובסה."); location.reload(); }
+                if (game.playerHP <= 0) { game.gameActive = false; alert("הפסד בקרב... נסה שוב."); location.reload(); }
+            }
+        }
+
+        // התאמה לשינוי גודל חלון
         window.onload = () => {
             const canvas = document.getElementById('gameCanvas');
             canvas.width = window.innerWidth;
@@ -182,37 +225,26 @@
 <body>
 
 <div id="start-overlay">
-    <h1 style="color: var(--primary); font-size: 50px;">המפקד איתי: מבצע עליונות</h1>
+    <h1 style="color: var(--primary); font-size: 45px; margin-bottom: 20px;">מבצע איתי: חומת מגן קריטית</h1>
     <button class="start-btn" onclick="startGame()">אשר פקודות והתחל</button>
 </div>
 
 <div id="hud">
-    <div class="stat-box"><span class="label">תקציב פנוי</span><span id="budget" class="value">$5000</span></div>
-    <div class="stat-box"><span class="label">שלמות הקואליציה</span><span id="p-hp" class="value">100%</span></div>
-    <div class="stat-box"><span class="label">חוסן איראני</span><span id="i-hp" class="value" style="color: var(--enemy)">100%</span></div>
+    <div class="stat-box"><span class="label">תקציב ישראל</span><span id="budget" class="value">$5000</span></div>
+    <div class="stat-box"><span class="label">חיים ישראל</span><span id="p-hp" class="value">100%</span></div>
+    <div class="stat-box" style="border: 1px solid var(--enemy);"><span class="label">חיים איראן</span><span id="i-hp" class="value" style="color: var(--enemy)">100%</span></div>
+    <div class="stat-box" style="border: 1px solid var(--enemy);"><span class="label">תקציב איראן</span><span id="iran-budget" class="value" style="color: var(--enemy)">$3000</span></div>
 </div>
 
-<div id="rank-display">דרגה: טוראי</div>
+<div id="shield-anim" class="shield-effect"></div>
 
 <canvas id="gameCanvas"></canvas>
 
 <div id="shop">
-    <div class="weapon-card" data-cost="500" onclick="buyWeapon('f35')">
-        <span>F-35 אדיר</span>
-        <span class="price">$500</span>
-    </div>
-    <div class="weapon-card" data-cost="2000" onclick="buyWeapon('b2')">
-        <span>מפציץ B-2</span>
-        <span class="price">$2000</span>
-    </div>
-    <div class="weapon-card" data-cost="4500" onclick="buyWeapon('jericho')">
-        <span>טיל יריחו 3</span>
-        <span class="price">$4500</span>
-    </div>
-    <div class="weapon-card" id="iron-dome-btn" data-cost="1000" onclick="activateIronDome()">
-        <span>כיפת ברזל</span>
-        <span class="price">$1000</span>
-    </div>
+    <div class="weapon-card" data-cost="500" onclick="buyWeapon('f35')"><span>F-35</span><span class="price">$500</span></div>
+    <div class="weapon-card" data-cost="2000" onclick="buyWeapon('b2')"><span>B-2</span><span class="price">$2000</span></div>
+    <div class="weapon-card" data-cost="4500" onclick="buyWeapon('jericho')"><span>יריחו</span><span class="price">$4500</span></div>
+    <div class="weapon-card" id="iron-dome-btn" data-cost="1200" onclick="activateIronDome()"><span>כיפת ברזל</span><span class="price">$1200</span></div>
 </div>
 
 </body>
