@@ -2,219 +2,173 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Middle East Crisis - Elite Command</title>
+    <title>מבצע איתי: Elite Air Force</title>
     <style>
-        :root { --primary: #00e5ff; --enemy: #ff0055; --bg: #050a0f; }
-        body { 
-            background: var(--bg); 
-            color: #e0e0e0; 
-            font-family: 'Segoe UI', Tahoma, sans-serif; 
-            margin: 0; 
-            overflow: hidden; 
-            user-select: none;
+        :root { --neon-blue: #00e5ff; --neon-red: #ff0055; --gold: #f1c40f; }
+        body { margin: 0; background: #020406; color: white; font-family: 'Assistant', sans-serif; overflow: hidden; }
+        
+        /* מסך התחלה לאישור סאונד */
+        #start-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.9);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .start-btn { 
+            padding: 20px 40px; font-size: 30px; background: none; 
+            border: 3px solid var(--neon-blue); color: var(--neon-blue); 
+            cursor: pointer; transition: 0.3s;
+        }
+        .start-btn:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 30px var(--neon-blue); }
+
+        #ui-layer {
+            position: absolute; top: 0; width: 100%; height: 100px;
+            display: flex; justify-content: space-around; align-items: center; z-index: 100;
         }
 
-        /* סרגל עליון */
-        #status-bar { 
-            height: 70px; 
-            background: #1a2634; 
-            display: flex; 
-            justify-content: space-around; 
-            align-items: center; 
-            border-bottom: 3px solid var(--primary); 
+        .stat-card { text-align: center; background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 5px; border: 1px solid var(--neon-blue); }
+        .number { font-size: 24px; font-weight: bold; color: var(--neon-blue); direction: ltr; display: block; }
+
+        canvas { display: block; }
+
+        #command-center {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 20px; z-index: 100;
         }
 
-        .stat-box { text-align: center; }
-        .stat-val { 
-            font-size: 22px; 
-            font-weight: bold; 
-            color: var(--primary); 
-            direction: ltr; 
-            display: block; 
+        .cmd-btn {
+            background: rgba(5, 10, 20, 0.8); border: 2px solid var(--neon-blue);
+            color: var(--neon-blue); padding: 15px 25px; cursor: pointer; font-weight: bold;
         }
-
-        /* אזור המפה */
-        #map-area { 
-            height: calc(100vh - 220px); 
-            position: relative; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            background: radial-gradient(circle, #1b2735 0%, #050a0f 100%); 
-        }
-
-        .country-card { 
-            width: 180px; 
-            background: rgba(255,255,255,0.05); 
-            border: 1px solid #333; 
-            border-radius: 12px; 
-            padding: 15px; 
-            text-align: center; 
-            margin: 0 20px;
-        }
-
-        .hp-bar { height: 10px; background: #333; border-radius: 5px; margin-top: 10px; overflow: hidden; }
-        .hp-fill { height: 100%; background: #2ed573; transition: width 0.5s; }
-
-        /* לוג הודעות */
-        #log { 
-            height: 80px; 
-            background: #0a0e14; 
-            padding: 10px; 
-            overflow-y: auto; 
-            font-size: 14px; 
-            border-top: 1px solid #333; 
-        }
-
-        /* כפתורי פעולה */
-        #actions { 
-            height: 70px; 
-            background: #16213e; 
-            display: flex; 
-            gap: 15px; 
-            justify-content: center; 
-            align-items: center; 
-        }
-
-        .action-btn { 
-            background: none; 
-            border: 2px solid var(--primary); 
-            color: var(--primary); 
-            padding: 8px 20px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            border-radius: 5px; 
-        }
-
-        .action-btn:hover { background: var(--primary); color: #000; }
-        .action-btn:disabled { border-color: #555; color: #555; }
-
-        /* אפקטים */
-        .explosion { 
-            position: absolute; 
-            width: 40px; 
-            height: 40px; 
-            background: orange; 
-            border-radius: 50%; 
-            filter: blur(5px); 
-            animation: boom 0.5s forwards; 
-        }
-        @keyframes boom { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
     </style>
 </head>
 <body>
 
-<div id="status-bar">
-    <div class="stat-box">תור<div id="turn-count" class="stat-val">1</div></div>
-    <div class="stat-box">תקציב<div id="budget" class="stat-val">$5000</div></div>
-    <div id="turn-indicator" style="font-size: 18px; color: #f1c40f;">תורך, המפקד איתי</div>
+<div id="start-overlay">
+    <h1 style="color: var(--neon-blue)">COMMANDER ITAY</h1>
+    <button class="start-btn" onclick="startGame()">כניסה למערכת</button>
 </div>
 
-<div id="map-area">
-    <div id="israel" class="country-card">
-        <h3>ישראל 🇮🇱</h3>
-        <div class="hp-bar"><div id="israel-hp" class="hp-fill" style="width: 100%;"></div></div>
-    </div>
-    <div id="usa" class="country-card">
-        <h3>ארה"ב 🇺🇸</h3>
-        <div class="hp-bar"><div id="usa-hp" class="hp-fill" style="width: 100%;"></div></div>
-    </div>
-    <div id="iran" class="country-card">
-        <h3>איראן 🇮🇷</h3>
-        <div class="hp-bar"><div id="iran-hp" class="hp-fill" style="width: 100%; background: var(--enemy);"></div></div>
-        <small>גרעין: <span id="nuke-prog" style="direction: ltr; display: inline-block;">10%</span></small>
-    </div>
+<div id="ui-layer">
+    <div class="stat-card"><span>BUDGET</span><span id="budget" class="number">$5000</span></div>
+    <div class="stat-card"><span>COALITION</span><span id="player-hp" class="number">100%</span></div>
+    <div class="stat-card" style="border-color: var(--neon-red)"><span>IRAN HP</span><span id="iran-hp" class="number">100%</span></div>
 </div>
 
-<div id="log"></div>
+<canvas id="gameCanvas"></canvas>
 
-<div id="actions">
-    <button class="action-btn" onclick="executeAction('strike')">תקיפה אווירית ($500)</button>
-    <button class="action-btn" onclick="executeAction('cyber')">לוחמת סייבר ($300)</button>
-    <button class="action-btn" onclick="passTurn()" style="border-color: #f1c40f; color: #f1c40f;">סיום תור</button>
+<div id="command-center">
+    <button class="cmd-btn" onclick="spawnUnit('f35')">F-35</button>
+    <button class="cmd-btn" onclick="spawnUnit('b2')">B-2 BOMBER</button>
+    <button class="cmd-btn" onclick="spawnUnit('jericho')">JERICHO MISSILE</button>
+    <button class="cmd-btn" id="end-turn" onclick="triggerEnemy()" style="border-color: var(--gold); color: var(--gold);">END TURN</button>
 </div>
 
 <script>
-    let state = {
-        turn: 1, budget: 5000,
-        israelHP: 100, usaHP: 100, iranHP: 100,
-        iranNuke: 10, isPlayerTurn: true
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // הגדרת סאונדים
+    const sounds = {
+        swoosh: new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'),
+        boom: new Audio('https://assets.mixkit.co/active_storage/sfx/1614/1614-preview.mp3')
     };
 
-    function addLog(text, color = "#aaa") {
-        const log = document.getElementById('log');
-        log.innerHTML = `<div style="color:${color}">• ${text}</div>` + log.innerHTML;
+    function playSound(name) {
+        sounds[name].currentTime = 0; // לאפס כדי שיוכל לנגן שוב מיד
+        sounds[name].play();
     }
 
-    function createExplosion(targetId) {
-        const target = document.getElementById(targetId);
-        const rect = target.getBoundingClientRect();
-        const exp = document.createElement('div');
-        exp.className = 'explosion';
-        exp.style.left = (rect.left + rect.width/2) + 'px';
-        exp.style.top = (rect.top + rect.height/2) + 'px';
-        document.body.appendChild(exp);
-        setTimeout(() => exp.remove(), 500);
+    function startGame() {
+        document.getElementById('start-overlay').style.display = 'none';
+        // צליל פתיחה קטן
+        playSound('swoosh');
+        loop();
     }
 
-    function executeAction(type) {
-        if (!state.isPlayerTurn) return;
+    let game = {
+        budget: 5000, playerHP: 100, iranHP: 100,
+        units: [], particles: [], shake: 0
+    };
 
-        if (type === 'strike' && state.budget >= 500) {
-            state.budget -= 500;
-            let dmg = Math.floor(Math.random() * 15) + 10;
-            state.iranHP -= dmg;
-            addLog(`תקיפה מוצלחת! נזק לאיראן: ${dmg}%`, "#00e5ff");
-            createExplosion('iran');
-        } else if (type === 'cyber' && state.budget >= 300) {
-            state.budget -= 300;
-            state.iranNuke = Math.max(0, state.iranNuke - 15);
-            addLog(`סייבר: תוכנית הגרעין עוכבה ב-15%`, "#2ed573");
-        }
+    const types = {
+        f35: { emoji: '✈️', speed: 8, dmg: 10, cost: 500, size: 30, trail: '#00e5ff' },
+        b2: { emoji: '🛸', speed: 4, dmg: 40, cost: 1500, size: 50, trail: '#555' },
+        jericho: { emoji: '🚀', speed: 14, dmg: 60, cost: 3000, size: 25, trail: '#ffaa00' },
+        iran: { emoji: '☄️', speed: -6, dmg: 20, size: 30, trail: '#ff0055' }
+    };
+
+    function spawnUnit(id) {
+        if(game.budget < types[id].cost) return;
+        game.budget -= types[id].cost;
+        createUnit(id, 50, true);
+        playSound('swoosh');
         updateUI();
-        if (state.iranHP <= 0) { alert("ניצחון לאיתי!"); location.reload(); }
     }
 
-    function passTurn() {
-        state.isPlayerTurn = false;
-        document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
-        addLog("איראן מתכננת תגובה...", "#ff4757");
-        setTimeout(iranTurn, 1000);
+    function triggerEnemy() {
+        setTimeout(() => {
+            createUnit('iran', canvas.width - 50, false);
+            playSound('swoosh');
+        }, 1000);
     }
 
-    function iranTurn() {
-        state.iranNuke += 8;
-        let target = Math.random() > 0.5 ? 'israel' : 'usa';
-        let dmg = Math.floor(Math.random() * 10) + 5;
+    function createUnit(id, x, isAlly) {
+        game.units.push({
+            ...types[id], x, isAlly,
+            y: 200 + Math.random() * (canvas.height - 400)
+        });
+    }
 
-        if (target === 'israel' && Math.random() > 0.5) {
-            addLog("כיפת ברזל יירטה את המתקפה!", "#f1c40f");
-        } else {
-            if(target === 'israel') state.israelHP -= dmg;
-            else state.usaHP -= dmg;
-            addLog(`פגיעה ב${target === 'israel' ? 'ישראל' : 'ארה"ב'}: ${dmg}% נזק`, "#ff4757");
-            createExplosion(target);
-        }
-
-        state.turn++;
-        state.budget += 700;
-        state.isPlayerTurn = true;
-        document.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
-        updateUI();
-
-        if (state.iranNuke >= 100 || state.israelHP <= 0) {
-            alert("המשחק נגמר!");
-            location.reload();
+    function createParticle(x, y, color) {
+        for(let i=0; i<3; i++) {
+            game.particles.push({
+                x, y, color,
+                vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4,
+                life: 1.0
+            });
         }
     }
 
     function updateUI() {
-        document.getElementById('budget').textContent = `$${state.budget}`;
-        document.getElementById('turn-count').textContent = state.turn;
-        document.getElementById('israel-hp').style.width = state.israelHP + "%";
-        document.getElementById('usa-hp').style.width = state.usaHP + "%";
-        document.getElementById('iran-hp').style.width = state.iranHP + "%";
-        document.getElementById('nuke-prog').textContent = state.iranNuke + "%";
+        document.getElementById('budget').innerText = `$${game.budget}`;
+        document.getElementById('player-hp').innerText = `${game.playerHP}%`;
+        document.getElementById('iran-hp').innerText = `${game.iranHP}%`;
+    }
+
+    function loop() {
+        let dx = (Math.random() - 0.5) * game.shake;
+        let dy = (Math.random() - 0.5) * game.shake;
+        ctx.setTransform(1,0,0,1, dx, dy);
+        if(game.shake > 0) game.shake *= 0.9;
+
+        ctx.fillStyle = '#020406';
+        ctx.fillRect(-50,-50, canvas.width+100, canvas.height+100);
+
+        game.particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.life -= 0.03;
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.life;
+            ctx.fillRect(p.x, p.y, 2, 2);
+            if(p.life <= 0) game.particles.splice(i, 1);
+        });
+        ctx.globalAlpha = 1.0;
+
+        game.units.forEach((u, i) => {
+            u.x += u.isAlly ? u.speed : u.speed;
+            createParticle(u.x, u.y, u.trail);
+            ctx.font = `${u.size}px Arial`;
+            ctx.fillText(u.emoji, u.x, u.y);
+
+            if((u.isAlly && u.x > canvas.width - 50) || (!u.isAlly && u.x < 50)) {
+                if(u.isAlly) game.iranHP -= u.dmg; else game.playerHP -= u.dmg;
+                game.shake = 20;
+                playSound('boom');
+                game.units.splice(i, 1);
+                updateUI();
+            }
+        });
+        requestAnimationFrame(loop);
     }
 </script>
 </body>
